@@ -2,11 +2,22 @@ const searchInput = document.getElementById('search__input');
 const searchButton = document.getElementById('search__button');
 const searchError = document.getElementById('search__error');
 const githubList = document.getElementById('github__list');
+const loader = document.getElementById('loader');
 const arrGithubList = [];
+const delayGetDate = 3000;
+const delayGetUser = 1000;
+const loaderTime = Math.max(delayGetDate, delayGetUser);
+let date = new Date();
+const url = new URL(window.location.href);
+let userName = url.searchParams.get("username");
+
+if (userName) {
+    searchInput.value = userName;
+    getUserInfo(userName);
+}
 
 function clickSearchButton() {
     searchError.textContent = '';
-
     if (searchInput.value == "") {
         return;
     };
@@ -16,33 +27,82 @@ function clickSearchButton() {
     getUserInfo(userName);
 }
 
-async function getUserInfo(userName) {
-    try {
-        await fetch(`https://api.github.com/users/${userName}`)
-            .then(response => {
-                if (!response.ok) {
-                    searchError.textContent = '* Информация о пользователе не доступна'
-                    return;
-                }
-
-                return response.json()
-            })
-            .then(user => {
-                if (arrGithubList.includes(user.id) === true) {
-                    searchError.textContent = '* Профиль уже найден и расположен на доске.';
-                    return;
-                };
-                arrGithubList.push(user.id);
-                addCard(user);
-            })
-    } catch {
-        (error => {
-            searchError.textContent = `${error} * Информация о пользователе не доступна`
-        })
-    }
+function setLoaderActive(duration) {
+    githubList.classList.add('blur_active');
+    loader.classList.remove('hidden');
+    setTimeout(() => {
+        githubList.classList.remove('blur_active');
+        loader.classList.add('hidden');
+    }, duration);
 }
 
-function addCard(user) {
+/*
+async function getUserInfo(userName) {
+    await fetch(`https://api.github.com/users/${userName}`)
+        .then(response => {
+            if (!response.ok) {
+                searchError.textContent = '* Информация о пользователе не доступна'
+                return;
+            }
+
+            return response.json()
+        })
+        .then(user => {
+            if (arrGithubList.includes(user.id) === true) {
+                searchError.textContent = '* Профиль уже найден и расположен на доске.';
+                return;
+            };
+            arrGithubList.push(user.id);
+            addCard(user);
+        })
+        .catch((error) => {
+            searchError.textContent = `* Информация о пользователе не доступна`
+        })
+}
+*/
+
+function getUserInfo(userName) {
+    setLoaderActive(loaderTime);
+
+    const getDate = new Promise((resolve, reject) => {
+        setTimeout(() => {
+            date ? resolve(date) : reject('Время кончилось :(');
+        }, delayGetDate);
+    });
+
+    const getUser = new Promise((resolve, reject) => {
+        setTimeout(() => {
+            fetch(`https://api.github.com/users/${userName}`)
+                .then(response => {
+                    if (!response.ok) {
+                        searchError.textContent = '1 * Информация о пользователе не доступна'
+                        return;
+                    }
+
+                    return response.json();
+                })
+                .then(user => {
+                    resolve(user);
+                })
+                .catch((error) => {
+                    searchError.textContent = `${error} * Информация о пользователе не доступна`
+                })
+        }, delayGetUser);
+    });
+
+    Promise.all([getDate, getUser])
+        .then(([date, user]) => {
+            addCard(user, date);
+        })
+}
+
+function addCard(user, date) {
+    if (arrGithubList.includes(user.id) === true) {
+        searchError.textContent = '* Профиль уже найден и расположен на доске.';
+        return;
+    };
+    arrGithubList.push(user.id);
+
     let githubItem = document.createElement('div');
     githubItem.classList.add('github__item');
 
@@ -64,17 +124,22 @@ function addCard(user) {
     githubProfile.target = "_blank";
     githubProfile.textContent = "Открыть профиль";
 
+    let githubDate = document.createElement('p');
+    githubItem.classList.add('github__date');
+
     // Заполняем карточку
     githubHeader.textContent = user.name;
     githubHeader.href = user.html_url;
     img.src = user.avatar_url;
     githubDescription.textContent = user.bio;
     githubProfile.href = user.html_url;
+    githubDate.textContent = getCorrectDate(date);
 
     githubItem.appendChild(githubHeader);
     githubItem.appendChild(githubAvatar);
     githubItem.appendChild(githubDescription);
     githubItem.appendChild(githubProfile);
+    githubItem.appendChild(githubDate);
 
     // Добавляем карточку на доску
     githubList.appendChild(githubItem);
@@ -86,3 +151,8 @@ searchInput.addEventListener('keypress', (event) => {
         clickSearchButton();
     }
 })
+
+function getCorrectDate(date) {
+    return (`${date.getDate()}.${date.getMonth()}.${date.getFullYear()}
+    ${date.getHours() < 10 ? '0' + date.getHours() : date.getHours()}:${date.getMinutes() < 10 ? '0' + date.getMinutes() : date.getMinutes()}:${date.getSeconds() < 10 ? '0' + date.getSeconds() : date.getSeconds()}`)
+}
