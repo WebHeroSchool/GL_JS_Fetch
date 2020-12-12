@@ -75,7 +75,7 @@ function getUserInfo(userName) {
             fetch(`https://api.github.com/users/${userName}`)
                 .then(response => {
                     if (!response.ok) {
-                        searchError.textContent = '1 * Информация о пользователе не доступна'
+                        searchError.textContent = '* Информация о пользователе не доступна'
                         return;
                     }
 
